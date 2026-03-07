@@ -1,7 +1,11 @@
 import { Course, Quiz } from "../types";
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const MODEL_NAME = "llama-3.3-70b-versatile";
+const DEFAULT_MODEL =
+  import.meta.env.VITE_GROQ_MODEL || "llama-3.3-70b-versatile";
+const COURSE_MODEL = import.meta.env.VITE_GROQ_MODEL_COURSE || DEFAULT_MODEL;
+const LESSON_MODEL = import.meta.env.VITE_GROQ_MODEL_LESSON || DEFAULT_MODEL;
+const QUIZ_MODEL = import.meta.env.VITE_GROQ_MODEL_QUIZ || DEFAULT_MODEL;
 
 const parseJSON = (text: string, fallback: any = {}) => {
   try {
@@ -27,7 +31,11 @@ const getApiKey = () => {
   return key;
 };
 
-const callGroq = async (prompt: string, jsonMode = false): Promise<string> => {
+const callGroq = async (
+  prompt: string,
+  model: string,
+  jsonMode = false
+): Promise<string> => {
   const apiKey = getApiKey();
 
   const response = await fetch(GROQ_API_URL, {
@@ -37,7 +45,7 @@ const callGroq = async (prompt: string, jsonMode = false): Promise<string> => {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: MODEL_NAME,
+      model,
       messages: [
         {
           role: "user",
@@ -58,7 +66,14 @@ const callGroq = async (prompt: string, jsonMode = false): Promise<string> => {
   return data?.choices?.[0]?.message?.content ?? "";
 };
 
-export const generateCourse = async (topic: string): Promise<Course> => {
+type GenerateOptions = {
+  model?: string;
+};
+
+export const generateCourse = async (
+  topic: string,
+  options?: GenerateOptions
+): Promise<Course> => {
   const prompt = `Create a comprehensive, structured learning path for the topic "${topic}".
 Return ONLY valid JSON with this shape:
 {
@@ -74,7 +89,11 @@ Return ONLY valid JSON with this shape:
 }
 Use 3-5 modules and 3-5 lessons per module.`;
 
-  const responseText = await callGroq(prompt, true);
+  const responseText = await callGroq(
+    prompt,
+    options?.model || COURSE_MODEL,
+    true
+  );
   const data = parseJSON(responseText, {
     title: topic,
     description: `Learning path for ${topic}`,
@@ -104,7 +123,8 @@ Use 3-5 modules and 3-5 lessons per module.`;
 export const generateLessonContent = async (
   courseTitle: string,
   moduleTitle: string,
-  lessonTitle: string
+  lessonTitle: string,
+  options?: GenerateOptions
 ): Promise<string> => {
   const prompt = `You are an expert tutor. Write a comprehensive lesson in Markdown.
 Course: ${courseTitle}
@@ -118,13 +138,18 @@ Include:
 4) Practical Example
 5) Summary`;
 
-  const responseText = await callGroq(prompt, false);
+  const responseText = await callGroq(
+    prompt,
+    options?.model || LESSON_MODEL,
+    false
+  );
   return responseText || "Failed to generate content.";
 };
 
 export const generateQuiz = async (
   courseTitle: string,
-  context: string
+  context: string,
+  options?: GenerateOptions
 ): Promise<Quiz> => {
   const prompt = `Create a multiple-choice quiz for: ${courseTitle} - ${context}.
 Generate 3 to 5 questions.
@@ -141,10 +166,13 @@ Return ONLY valid JSON:
   ]
 }`;
 
-  const responseText = await callGroq(prompt, true);
+  const responseText = await callGroq(
+    prompt,
+    options?.model || QUIZ_MODEL,
+    true
+  );
   return parseJSON(responseText, {
     title: `${courseTitle} Quiz`,
     questions: [],
   }) as Quiz;
 };
-

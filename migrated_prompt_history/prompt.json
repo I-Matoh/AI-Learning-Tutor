@@ -1,7 +1,7 @@
 [
   {
     "id": 0,
-    "author": "user",
+    "author": "Matoh",
     "payload": {
       "type": "text",
       "text": "build an online education app that creates the learning path for the user, directs them on how to make progress\n",
@@ -11,7 +11,7 @@
     },
     "createdTimestamp": {
       "seconds": 1770790140,
-      "nanos": 598000000
+      "nanos": 598000000 
     }
   },
   {
@@ -45,7 +45,7 @@
           "diffs": [
             {
               "target": "",
-              "replacement": "{\n  \"name\": \"EduPath AI\",\n  \"description\": \"An AI-powered personalized learning platform that generates custom curriculums, lessons, and quizzes based on your learning goals.\"\n}"
+              "replacement": "{\n  \"name\": \"AI Learning Partner\",\n  \"description\": \"An AI-powered personalized learning platform that generates custom curriculums, lessons, and quizzes based on your learning goals.\"\n}"
             }
           ]
         },
