@@ -221,7 +221,7 @@ export const AuthShell: React.FC<Props> = ({ children }) => {
         <button
           onClick={handleLogout}
           className="px-3 py-1.5 rounded-md border border-slate-300 text-slate-700 hover:bg-slate-100"
-        >
+        > 
           Logout
         </button>
       </div>

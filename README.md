@@ -9,6 +9,7 @@ Personalized AI tutor for anything!
 3. Open `.env` and set:
    `VITE_GROQ_API_KEY=...`
    `VITE_SUPABASE_URL=...`
+   
    `VITE_SUPABASE_ANON_KEY=...`
    `VITE_API_BASE_URL=http://localhost:4000`
 4. (Optional) choose one model for all tasks:

@@ -1,19 +1,57 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Session } from '@supabase/supabase-js';
 import { generateCourse, generateLessonContent, generateQuiz } from './services/groqService';
 import { Course, Module, Lesson, Quiz } from './types';
 import { Icons } from './components/icons';
 import { MarkdownRenderer } from './components/MarkdownRenderer';
+import { supabase } from './lib/supabaseClient';
 
 // --- Components ---
 
+const BrandLogo: React.FC<{ className?: string }> = ({ className = '' }) => (
+  <svg
+    viewBox="0 0 300 180"
+    aria-label="learn AI logo"
+    role="img"
+    className={className}
+  >
+    <rect x="20" y="20" width="260" height="140" fill="#25394d" />
+    <path d="M150 20 L150 85 L115 85 L115 20 Z" fill="#f6f3ed" />
+    <path d="M150 20 L188 20 L188 58 Z" fill="#d9a511" />
+    <rect x="108" y="58" width="84" height="5" fill="#f6f3ed" />
+    <rect x="108" y="67" width="84" height="5" fill="#f6f3ed" />
+    <rect x="108" y="76" width="84" height="5" fill="#f6f3ed" />
+    <rect x="126" y="84" width="5" height="31" fill="#f6f3ed" />
+    <rect x="136" y="84" width="5" height="31" fill="#f6f3ed" />
+    <rect x="146" y="84" width="5" height="31" fill="#f6f3ed" />
+    <rect x="156" y="84" width="5" height="31" fill="#f6f3ed" />
+    <text x="75" y="140" fontSize="42" fontFamily="Plus Jakarta Sans, sans-serif" fill="#e3b11d">learn AI</text>
+  </svg>
+);
+
 // 1. Onboarding Screen
-const Onboarding: React.FC<{ 
-  onStart: (topic: string) => void; 
+const Onboarding: React.FC<{
+  onStart: (topic: string) => void;
   loading: boolean;
   savedCourses: Course[];
   onResume: (course: Course) => void;
-}> = ({ onStart, loading, savedCourses, onResume }) => {
+  session: Session | null;
+  authLoading: boolean;
+  onOpenAuth: () => void;
+  onLogout: () => Promise<void>;
+}> = ({ onStart, loading, savedCourses, onResume, session, authLoading, onOpenAuth, onLogout }) => {
   const [topic, setTopic] = useState('');
+  const partners = ['Coursera', 'OpenAI', 'Red Hat', 'IBM', 'Northwestern University', 'Harvard', 'Princeton', 'Columbia'];
+  const partnerStyles: Record<string, { text: string; border: string; bg: string }> = {
+    Coursera: { text: '#0056D2', border: '#0056D2', bg: '#EEF4FF' },
+    OpenAI: { text: '#111111', border: '#111111', bg: '#F3F3F3' },
+    'Red Hat': { text: '#EE0000', border: '#EE0000', bg: '#FFF1F1' },
+    IBM: { text: '#0F62FE', border: '#0F62FE', bg: '#EFF4FF' },
+    'Northwestern University': { text: '#4E2A84', border: '#4E2A84', bg: '#F4EEFF' },
+    Harvard: { text: '#A51C30', border: '#A51C30', bg: '#FFF0F2' },
+    Princeton: { text: '#E77500', border: '#E77500', bg: '#FFF4E9' },
+    Columbia: { text: '#75AADB', border: '#75AADB', bg: '#EFF8FF' },
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,77 +59,297 @@ const Onboarding: React.FC<{
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100 flex items-center justify-center p-4">
-      <div className="max-w-2xl w-full text-center space-y-8">
-        <div className="space-y-4">
-          <div className="inline-flex items-center justify-center p-3 bg-white rounded-2xl shadow-sm mb-4">
-            <Icons.BookOpen className="w-8 h-8 text-indigo-600" />
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 tracking-tight">
-            What do you want to <span className="text-indigo-600">master</span> today?
-          </h1>
-          <p className="text-lg text-slate-600">
-            Enter a topic, and our AI will build a personalized curriculum just for you.
-          </p>
+    <div className="min-h-screen lux-bg relative overflow-hidden p-4 md:p-8">
+      <div className="lux-glow lux-glow-a" />
+      <div className="lux-glow lux-glow-b" />
+      <div className="max-w-6xl mx-auto">
+        <div className="flex justify-end mb-4">
+          {authLoading ? (
+            <span className="text-sm text-slate-600 glass-pill">Loading session...</span>
+          ) : session ? (
+            <button onClick={() => void onLogout()} className="ghost-btn">
+              Logout
+            </button>
+          ) : (
+            <button onClick={onOpenAuth} className="ghost-btn">
+              Login / Sign up
+            </button>
+          )}
         </div>
 
-        <form onSubmit={handleSubmit} className="relative">
-          <input
-            type="text"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="e.g., Quantum Physics, French History, React Hooks..."
-            className="w-full px-6 py-4 text-lg rounded-full border-2 border-transparent shadow-lg focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 transition-all disabled:opacity-50"
-            disabled={loading}
-          />
-          <button
-            type="submit"
-            disabled={loading || !topic.trim()}
-            className="absolute right-2 top-2 bottom-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 rounded-full font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
-          >
-            {loading ? <Icons.RefreshCw className="animate-spin w-5 h-5" /> : <Icons.Sparkles className="w-5 h-5" />}
-            {loading ? 'Building...' : 'Start'}
-          </button>
-        </form>
-        
-        <div className="flex justify-center gap-4 text-sm text-slate-500">
-          <span>Try: "Digital Marketing"</span>
-          <span>•</span>
-          <span>"Python for Beginners"</span>
-          <span>•</span>
-          <span>"Renaissance Art"</span>
-        </div>
+        <section className="hero-shell">
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <BrandLogo className="h-14 w-auto rounded-lg shadow-md" />
+            </div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 border border-white/70 text-xs tracking-[0.14em] uppercase text-slate-600">
+              <Icons.Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              Precision Learning Design
+            </div>
+            <h1 className="hero-title text-slate-900">
+              What do you want to <span className="text-amber-700">master</span> today?
+            </h1>
+            <p className="text-slate-600 text-lg md:text-xl max-w-2xl">
+              Name one high-value topic. Get a structured path, lessons, and practice in minutes.
+            </p>
+
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span className="feature-chip">Clear first step</span>
+              <span className="feature-chip">Fast feedback loops</span>
+              <span className="feature-chip">Compounding skill growth</span>
+            </div>
+
+            <div className="max-w-3xl w-full mx-auto">
+              <form onSubmit={handleSubmit} className="glass-panel p-2 md:p-3 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-2 md:gap-3">
+                <input
+                  type="text"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  placeholder="e.g., Negotiation strategy, Machine Learning ops, High-ticket copywriting"
+                  className="w-full min-w-0 px-5 py-4 text-base md:text-lg rounded-2xl border border-slate-200 bg-white/90 focus:outline-none focus:ring-2 focus:ring-amber-400/60 transition-all disabled:opacity-50"
+                  disabled={loading}
+                />
+                <button
+                  type="submit"
+                  disabled={loading || !topic.trim()}
+                  className="gold-btn w-full md:w-64 px-7 py-4 rounded-2xl font-semibold disabled:opacity-50 flex items-center justify-center gap-2 text-center justify-self-center"
+                >
+                  {loading ? <Icons.RefreshCw className="animate-spin w-5 h-5" /> : <Icons.Sparkles className="w-5 h-5" />}
+                  {loading ? 'Building your path...' : 'Build my learning plan'}
+                </button>
+              </form>
+            </div>
+
+            {!session && !authLoading && (
+              <p className="text-sm text-amber-900 bg-amber-100/80 border border-amber-200 rounded-xl py-2 px-3 max-w-xl">
+                Explore the idea instantly. Login or sign up is required only when you access resources and generate your personalized content.
+              </p>
+            )}
+
+            <div className="flex flex-wrap gap-2 text-sm text-slate-500">
+              <span>Try: "Digital Marketing"</span>
+              <span>|</span>
+              <span>"Python for Beginners"</span>
+              <span>|</span>
+              <span>"Renaissance Art"</span>
+            </div>
+
+            <div className="max-w-3xl w-full mx-auto">
+              <p className="text-center text-sm font-semibold tracking-[0.08em] uppercase text-slate-700 mb-2">
+                Trusted Partners
+              </p>
+              <div className="partner-strip">
+                <div className="partner-track">
+                  <div className="partner-group">
+                    {partners.map((partner) => (
+                      <span
+                        key={`group-a-${partner}`}
+                        className="partner-pill"
+                        style={{
+                          color: partnerStyles[partner].text,
+                          borderColor: partnerStyles[partner].border,
+                          backgroundColor: partnerStyles[partner].bg,
+                        }}
+                      >
+                        {partner}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="partner-group" aria-hidden="true">
+                    {partners.map((partner) => (
+                      <span
+                        key={`group-b-${partner}`}
+                        className="partner-pill"
+                        style={{
+                          color: partnerStyles[partner].text,
+                          borderColor: partnerStyles[partner].border,
+                          backgroundColor: partnerStyles[partner].bg,
+                        }}
+                      >
+                        {partner}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="glass-panel p-5 stagger-in">
+              <h3 className="text-slate-900 font-semibold">Why this flow converts quickly</h3>
+              <p className="text-sm text-slate-600 mt-2">
+                One input, immediate structure, visible progress. Reduced decision friction helps users commit faster.
+              </p>
+            </div>
+            <div className="glass-panel p-5 stagger-in">
+              <h3 className="text-slate-900 font-semibold">Your outcome in this session</h3>
+              <p className="text-sm text-slate-600 mt-2">
+                A complete course map with lesson-by-lesson progression and checks for retention.
+              </p>
+            </div>
+          </div>
+        </section>
 
         {savedCourses.length > 0 && (
-          <div className="mt-12 text-left animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <Icons.Play className="w-5 h-5 text-indigo-600" />
+          <div className="mt-10 text-left">
+            <h2 className="text-xl font-semibold text-slate-900 mb-4 flex items-center gap-2">
+              <Icons.Play className="w-5 h-5 text-amber-700" />
               Continue Learning
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {savedCourses.map(course => {
                 const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0);
                 const completedLessons = course.modules.reduce((acc, m) => acc + m.lessons.filter(l => l.isCompleted).length, 0);
                 const progressPercent = totalLessons === 0 ? 0 : Math.round((completedLessons / totalLessons) * 100);
 
                 return (
-                  <button 
+                  <button
                     key={course.id}
                     onClick={() => onResume(course)}
-                    className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl shadow-sm hover:shadow-md transition-all border border-white/50 text-left flex flex-col gap-2 group"
+                    className="glass-panel p-5 text-left flex flex-col gap-2 group hover:-translate-y-1 transition-all duration-300"
                   >
-                    <h3 className="font-bold text-slate-900 line-clamp-1 group-hover:text-indigo-600 transition-colors">{course.title}</h3>
-                    <p className="text-sm text-slate-500 line-clamp-2 flex-1">{course.description}</p>
-                    <div className="w-full bg-slate-200/50 rounded-full h-1.5 mt-2 overflow-hidden">
-                        <div className="bg-indigo-600 h-1.5 rounded-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
+                    <h3 className="font-semibold text-slate-900 line-clamp-1 group-hover:text-amber-700 transition-colors">{course.title}</h3>
+                    <p className="text-sm text-slate-600 line-clamp-2 flex-1">{course.description}</p>
+                    <div className="w-full bg-slate-200/70 rounded-full h-2 mt-2 overflow-hidden">
+                      <div className="bg-gradient-to-r from-amber-500 to-orange-500 h-2 rounded-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
                     </div>
-                    <span className="text-xs text-slate-500 font-medium">{progressPercent}% Complete</span>
+                    <span className="text-xs text-slate-500 font-medium">{progressPercent}% complete</span>
                   </button>
                 );
               })}
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+};
+
+const AuthModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  onAuthenticated: () => void;
+}> = ({ open, onClose, onAuthenticated }) => {
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  if (!open) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password) {
+      setError('Email and password are required.');
+      return;
+    }
+
+    setError('');
+    setMessage('');
+    setSubmitting(true);
+
+    if (mode === 'signup') {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+      });
+
+      setSubmitting(false);
+
+      if (signUpError) {
+        setError(signUpError.message);
+        return;
+      }
+
+      if (!data.session) {
+        setMessage('Account created. Check your email to confirm signup.');
+        return;
+      }
+
+      onAuthenticated();
+      onClose();
+      return;
+    }
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    setSubmitting(false);
+
+    if (signInError) {
+      setError(signInError.message);
+      return;
+    }
+
+    onAuthenticated();
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/55 p-4 backdrop-blur-md">
+      <div className="w-full max-w-md glass-panel p-8 relative border border-white/70">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-slate-500 hover:text-slate-700"
+          aria-label="Close auth dialog"
+        >
+          <Icons.X className="w-5 h-5" />
+        </button>
+        <BrandLogo className="h-12 w-auto rounded-md shadow-sm mb-3" />
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs tracking-[0.1em] uppercase border border-amber-200 mb-4">
+          Secure Access
+        </div>
+        <h2 className="text-3xl auth-title text-slate-900 mb-1">
+          {mode === 'login' ? 'Sign in' : 'Create account'}
+        </h2>
+        <p className="text-sm text-slate-600 mb-6">
+          Unlock your personal learning resources and generate tailored course content.
+        </p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            className="w-full rounded-xl border border-slate-300 px-4 py-3 bg-white/90 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            autoComplete="email"
+            disabled={submitting}
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            className="w-full rounded-xl border border-slate-300 px-4 py-3 bg-white/90 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            autoComplete="current-password"
+            disabled={submitting}
+          />
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          {message && <p className="text-sm text-green-700">{message}</p>}
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full rounded-xl gold-btn text-slate-900 py-3 font-semibold disabled:opacity-60"
+          >
+            {submitting ? 'Please wait...' : mode === 'login' ? 'Login' : 'Sign up'}
+          </button>
+        </form>
+        <button
+          type="button"
+          onClick={() => {
+            setMode(mode === 'login' ? 'signup' : 'login');
+            setError('');
+            setMessage('');
+          }}
+          className="w-full mt-4 text-sm text-slate-700 hover:text-slate-900 font-medium"
+        >
+          {mode === 'login' ? 'No account yet? Sign up' : 'Already have an account? Login'}
+        </button>
       </div>
     </div>
   );
@@ -396,6 +654,7 @@ const Dashboard: React.FC<{ course: Course; onUpdateCourse: (course: Course) => 
   const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0);
   const completedLessons = course.modules.reduce((acc, m) => acc + m.lessons.filter(l => l.isCompleted).length, 0);
   const progressPercent = Math.round((completedLessons / totalLessons) * 100);
+  const copyrightYear = new Date().getFullYear();
 
   return (
     <div className="flex h-screen overflow-hidden bg-white">
@@ -417,8 +676,8 @@ const Dashboard: React.FC<{ course: Course; onUpdateCourse: (course: Course) => 
       >
         <div className="p-6 border-b border-slate-200 flex justify-between items-center">
           <button onClick={onBack} className="flex items-center gap-2 text-indigo-700 font-bold text-xl hover:opacity-80 transition-opacity text-left">
-             <Icons.BookOpen className="w-6 h-6 shrink-0" />
-             <span>EduPath</span>
+             <BrandLogo className="h-9 w-auto rounded-md shrink-0" />
+             <span>Learn AI</span>
           </button>
           <button onClick={() => setSidebarOpen(false)} className="md:hidden text-slate-500">
             <Icons.X className="w-5 h-5"/>
@@ -482,8 +741,8 @@ const Dashboard: React.FC<{ course: Course; onUpdateCourse: (course: Course) => 
           ))}
         </div>
         
-        <div className="p-4 border-t border-slate-200 text-xs text-center text-slate-400">
-             Powered by Google Gemini
+        <div className="p-4 border-t border-slate-200 text-xs text-center text-slate-500">
+             Copyright © {copyrightYear} Learn AI. All rights reserved.
         </div>
       </aside>
 
@@ -572,6 +831,10 @@ export default function App() {
   const [courseData, setCourseData] = useState<Course | null>(null);
   const [loading, setLoading] = useState(false);
   const [savedCourses, setSavedCourses] = useState<Course[]>([]);
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [pendingTopic, setPendingTopic] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('edupath_courses');
@@ -582,6 +845,34 @@ export default function App() {
         console.error("Failed to parse saved courses", e);
       }
     }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const initialize = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (mounted) {
+        setSession(data.session);
+        setAuthLoading(false);
+      }
+    };
+
+    initialize();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+      setSession(currentSession);
+      if (!currentSession) {
+        setCourseData(null);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const saveCourse = (updatedCourse: Course) => {
@@ -600,7 +891,7 @@ export default function App() {
     });
   };
 
-  const handleStart = async (topic: string) => {
+  const runStart = async (topic: string) => {
     setLoading(true);
     try {
       const course = await generateCourse(topic);
@@ -613,7 +904,20 @@ export default function App() {
     }
   };
 
+  const handleStart = async (topic: string) => {
+    if (!session) {
+      setPendingTopic(topic);
+      setAuthModalOpen(true);
+      return;
+    }
+    await runStart(topic);
+  };
+
   const handleResume = (course: Course) => {
+    if (!session) {
+      setAuthModalOpen(true);
+      return;
+    }
     setCourseData(course);
   };
 
@@ -621,9 +925,40 @@ export default function App() {
     setCourseData(null);
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  const handleAuthenticated = () => {
+    if (pendingTopic) {
+      const topic = pendingTopic;
+      setPendingTopic(null);
+      void runStart(topic);
+    }
+  };
+
   if (!courseData) {
-    return <Onboarding onStart={handleStart} loading={loading} savedCourses={savedCourses} onResume={handleResume} />;
+    return (
+      <>
+        <Onboarding
+          onStart={handleStart}
+          loading={loading}
+          savedCourses={savedCourses}
+          onResume={handleResume}
+          session={session}
+          authLoading={authLoading}
+          onOpenAuth={() => setAuthModalOpen(true)}
+          onLogout={handleLogout}
+        />
+        <AuthModal
+          open={authModalOpen}
+          onClose={() => setAuthModalOpen(false)}
+          onAuthenticated={handleAuthenticated}
+        />
+      </>
+    );
   }
 
   return <Dashboard course={courseData} onUpdateCourse={saveCourse} onBack={handleBackToHome} />;
 }
+
