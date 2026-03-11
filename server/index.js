@@ -1,3 +1,4 @@
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -18,6 +19,15 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/api", protectedRoutes);
+
+// Serve built client assets
+const clientBuildPath = path.join(__dirname, "..", "dist");
+app.use(express.static(clientBuildPath));
+
+// SPA fallback to index.html for non-API routes
+app.get("*", (req, res) => {
+  res.sendFile(path.join(clientBuildPath, "index.html"));
+});
 
 app.listen(port, () => {
   // eslint-disable-next-line no-console

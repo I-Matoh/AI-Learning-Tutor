@@ -135,8 +135,9 @@ Include:
 1) Introduction
 2) Key Concepts (bullets)
 3) Detailed Explanation (subheadings)
-4) Practical Example
-5) Summary`;
+4) Screenshot or Code Example
+5) Practical Example
+6) Summary`;
 
   const responseText = await callGroq(
     prompt,
