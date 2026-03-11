@@ -24,8 +24,8 @@ app.use("/api", protectedRoutes);
 const clientBuildPath = path.join(__dirname, "..", "dist");
 app.use(express.static(clientBuildPath));
 
-// SPA fallback to index.html for non-API routes (Express 5 requires regex-style splat)
-app.get("/:path(.*)", (req, res) => {
+// SPA fallback to index.html for any non-API route (regex avoids path-to-regexp parsing issues)
+app.get(/^\/(?!api).*/, (_req, res) => {
   res.sendFile(path.join(clientBuildPath, "index.html"));
 });
 
