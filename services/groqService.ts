@@ -113,7 +113,7 @@ Return ONLY valid JSON with this shape:
     }
   ]
 }
-Use 3-5 modules and 3-5 lessons per module.`;
+Use 3-5 modules and 3-5 lessons per module and avoid repetition tasks, be precise for the topic "${topic}".`;
 
   const responseText = await callGroq(
     prompt,
@@ -152,7 +152,7 @@ export const generateLessonContent = async (
   lessonTitle: string,
   options?: GenerateOptions
 ): Promise<string> => {
-  const prompt = `You are an expert tutor. Write a comprehensive lesson in Markdown.
+  const prompt = `You are an expert tutor. Write a comprehensive lesson in Markdown, focus on top notch content that is engaging and educational tailored for billionaire-level professionals.
 Course: ${courseTitle}
 Module: ${moduleTitle}
 Lesson: ${lessonTitle}
@@ -161,7 +161,7 @@ Include:
 1) Introduction
 2) Key Concepts (bullets)
 3) Detailed Explanation (subheadings)
-4) Screenshot or Code Example
+4) Screenshot or Diagram Suggestions (describe what visuals would help)
 5) Practical Example
 6) Summary`;
 

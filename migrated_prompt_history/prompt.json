@@ -74,10 +74,10 @@
           ]
         },
         {
-          "path": "services/geminiService.ts",
+          "path": "services/groqService.ts",
           "generationType": 0,
           "isDone": true,
-          "description": "Service for interacting with Google Gemini API",
+          "description": "Service for interacting with Groq API",
           "diffs": [
             {
               "target": "",
