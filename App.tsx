@@ -39,7 +39,9 @@ const Onboarding: React.FC<{
   authLoading: boolean;
   onOpenAuth: () => void;
   onLogout: () => Promise<void>;
-}> = ({ onStart, loading, savedCourses, onResume, session, authLoading, onOpenAuth, onLogout }) => {
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
+}> = ({ onStart, loading, savedCourses, onResume, session, authLoading, onOpenAuth, onLogout, theme, onToggleTheme }) => {
   const [topic, setTopic] = useState('');
   const partners = ['Coursera', 'OpenAI', 'Red Hat', 'IBM', 'Northwestern University', 'Harvard', 'Princeton', 'Columbia'];
   const partnerStyles: Record<string, { text: string; border: string; bg: string }> = {
@@ -63,7 +65,10 @@ const Onboarding: React.FC<{
       <div className="lux-glow lux-glow-a" />
       <div className="lux-glow lux-glow-b" />
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-end mb-4 gap-2 flex-wrap">
+          <button onClick={onToggleTheme} className="ghost-btn" aria-label="Toggle theme">
+            {theme === 'dark' ? '☀️ Light mode' : '🌙 Dark mode'}
+          </button>
           {authLoading ? (
             <span className="text-sm text-slate-600 glass-pill">Loading session...</span>
           ) : session ? (
@@ -828,6 +833,12 @@ const Dashboard: React.FC<{ course: Course; onUpdateCourse: (course: Course) => 
 
 // Main App Container
 export default function App() {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window === 'undefined') return 'light';
+    const stored = localStorage.getItem('theme');
+    if (stored === 'dark' || stored === 'light') return stored;
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
   const [courseData, setCourseData] = useState<Course | null>(null);
   const [loading, setLoading] = useState(false);
   const [savedCourses, setSavedCourses] = useState<Course[]>([]);
@@ -835,6 +846,12 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [pendingTopic, setPendingTopic] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     const saved = localStorage.getItem('edupath_courses');
@@ -874,6 +891,10 @@ export default function App() {
       subscription.unsubscribe();
     };
   }, []);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   const saveCourse = (updatedCourse: Course) => {
     setCourseData(updatedCourse);
@@ -949,6 +970,8 @@ export default function App() {
           authLoading={authLoading}
           onOpenAuth={() => setAuthModalOpen(true)}
           onLogout={handleLogout}
+          theme={theme}
+          onToggleTheme={toggleTheme}
         />
         <AuthModal
           open={authModalOpen}

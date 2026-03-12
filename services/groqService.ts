@@ -6,6 +6,7 @@ const DEFAULT_MODEL =
 const COURSE_MODEL = import.meta.env.VITE_GROQ_MODEL_COURSE || DEFAULT_MODEL;
 const LESSON_MODEL = import.meta.env.VITE_GROQ_MODEL_LESSON || DEFAULT_MODEL;
 const QUIZ_MODEL = import.meta.env.VITE_GROQ_MODEL_QUIZ || DEFAULT_MODEL;
+const GROQ_DAILY_LIMIT = Number(import.meta.env.VITE_GROQ_DAILY_LIMIT || 5);
 
 const parseJSON = (text: string, fallback: any = {}) => {
   try {
@@ -31,12 +32,37 @@ const getApiKey = () => {
   return key;
 };
 
+const useQuota = (limit = GROQ_DAILY_LIMIT, windowMs = 24 * 60 * 60 * 1000) => {
+  if (typeof localStorage === "undefined") return; // SSR/Node safeguard
+
+  const now = Date.now();
+  const raw = localStorage.getItem("groq_quota_v1");
+  const record = raw ? JSON.parse(raw) : { count: 0, resetAt: now + windowMs };
+
+  // reset window if expired
+  if (record.resetAt < now) {
+    record.count = 0;
+    record.resetAt = now + windowMs;
+  }
+
+  if (record.count >= limit) {
+    const mins = Math.ceil((record.resetAt - now) / 60000);
+    throw new Error(
+      `Daily limit reached. You can make ${limit} AI generations per 24h. Try again in ${mins} min.`
+    );
+  }
+
+  record.count += 1;
+  localStorage.setItem("groq_quota_v1", JSON.stringify(record));
+};
+
 const callGroq = async (
   prompt: string,
   model: string,
   jsonMode = false
 ): Promise<string> => {
   const apiKey = getApiKey();
+  useQuota();
 
   const response = await fetch(GROQ_API_URL, {
     method: "POST",
