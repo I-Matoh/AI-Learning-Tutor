@@ -14,6 +14,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Session } from '@supabase/supabase-js';
+import { Analytics } from "@vercel/analytics/react";
 import { generateCourse, generateLessonContent, generateQuiz } from './src/services/groqService';
 import { Course, Module, Lesson, Quiz } from './src/types';
 import { Icons } from './src/components/icons';

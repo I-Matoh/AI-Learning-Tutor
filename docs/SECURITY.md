@@ -233,7 +233,7 @@ If a security incident is detected:
 
 ### Contact
 
-For security vulnerabilities, please contact: security@example.com
+For security vulnerabilities, please contact: security@matrixx.com
 
 ---
 
