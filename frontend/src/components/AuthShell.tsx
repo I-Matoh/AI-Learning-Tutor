@@ -1,6 +1,17 @@
+/**
+ * AuthShell Component
+ * 
+ * A wrapper component that provides authentication state management and UI.
+ * Handles login/signup flows and displays user session status with profile access.
+ */
+
 import React, { useEffect, useMemo, useState } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabaseClient";
+
+// =============================================================================
+// TYPE DEFINITIONS
+// =============================================================================
 
 type Props = {
   children: React.ReactNode;
@@ -13,28 +24,55 @@ type ProfileResponse = {
   };
 };
 
+// =============================================================================
+// AUTHENTICATION STATES
+// =============================================================================
+
+type AuthMode = "login" | "signup";
+
+/**
+ * AuthShell Component
+ * 
+ * Provides authentication functionality and wraps protected content.
+ * Features:
+ * - Login/Signup form with mode switching
+ * - Session management with auto-refresh
+ * - Profile fetching from protected API endpoint
+ * - Logout functionality
+ */
 export const AuthShell: React.FC<Props> = ({ children }) => {
+  // Authentication state
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  
+  // Form state
+  const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  
+  // Profile state
   const [profile, setProfile] = useState<ProfileResponse["user"] | null>(null);
   const [profileError, setProfileError] = useState("");
   const [profileLoading, setProfileLoading] = useState(false);
 
+  // Server API base URL from environment
   const apiBaseUrl = useMemo(
     () => import.meta.env.VITE_API_BASE_URL || "http://localhost:4000",
     []
   );
 
+  // =============================================================================
+  // SESSION MANAGEMENT
+  // =============================================================================
+
   useEffect(() => {
     let mounted = true;
 
     const initialize = async () => {
+      // Get initial session on mount
       const { data } = await supabase.auth.getSession();
       if (mounted) {
         setSession(data.session);
@@ -44,10 +82,12 @@ export const AuthShell: React.FC<Props> = ({ children }) => {
 
     initialize();
 
+    // Subscribe to auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, currentSession) => {
       setSession(currentSession);
+      // Clear profile when auth state changes
       setProfile(null);
       setProfileError("");
     });
@@ -58,6 +98,14 @@ export const AuthShell: React.FC<Props> = ({ children }) => {
     };
   }, []);
 
+  // =============================================================================
+  // FORM HANDLERS
+  // =============================================================================
+
+  /**
+   * Handles form submission for both login and signup.
+   * Distinguishes between modes and calls appropriate Supabase auth method.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password) {
@@ -70,6 +118,7 @@ export const AuthShell: React.FC<Props> = ({ children }) => {
     setSubmitting(true);
 
     if (mode === "signup") {
+      // Handle new user registration
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -82,6 +131,7 @@ export const AuthShell: React.FC<Props> = ({ children }) => {
         return;
       }
 
+      // If no session returned, email confirmation may be required
       if (!data.session) {
         setMessage("Account created. Check your email to confirm signup.");
         return;
@@ -90,6 +140,7 @@ export const AuthShell: React.FC<Props> = ({ children }) => {
       return;
     }
 
+    // Handle existing user login
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
@@ -103,6 +154,10 @@ export const AuthShell: React.FC<Props> = ({ children }) => {
     }
   };
 
+  /**
+   * Fetches user profile from the protected API endpoint.
+   * Demonstrates authenticated API access using the session token.
+   */
   const fetchProfile = async () => {
     if (!session?.access_token) return;
 
@@ -130,10 +185,18 @@ export const AuthShell: React.FC<Props> = ({ children }) => {
     }
   };
 
+  /**
+   * Logs out the current user and clears session.
+   */
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
 
+  // =============================================================================
+  // RENDER STATES
+  // =============================================================================
+
+  // Loading state while checking session
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
@@ -142,6 +205,7 @@ export const AuthShell: React.FC<Props> = ({ children }) => {
     );
   }
 
+  // Unauthenticated state - show login/signup form
   if (!session) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center p-4">
@@ -189,6 +253,7 @@ export const AuthShell: React.FC<Props> = ({ children }) => {
             </button>
           </form>
 
+          {/* Toggle between login and signup modes */}
           <button
             type="button"
             onClick={() => {
@@ -207,8 +272,10 @@ export const AuthShell: React.FC<Props> = ({ children }) => {
     );
   }
 
+  // Authenticated state - show protected content with user toolbar
   return (
     <div className="relative">
+      {/* User toolbar with profile and logout controls */}
       <div className="fixed top-3 right-3 z-50 bg-white/95 border border-slate-200 shadow-lg rounded-xl p-3 text-sm flex items-center gap-2">
         <span className="text-slate-700 max-w-56 truncate">{session.user.email}</span>
         <button
@@ -226,6 +293,7 @@ export const AuthShell: React.FC<Props> = ({ children }) => {
         </button>
       </div>
 
+      {/* Profile display panel */}
       {(profile || profileError) && (
         <div className="fixed top-16 right-3 z-50 w-80 bg-white border border-slate-200 shadow-lg rounded-xl p-3 text-sm">
           {profileError ? (

@@ -1,58 +1,149 @@
-# AI-Learning-Tutor
-Personalized AI tutor for anything!
+# AI Learning Tutor
 
-## Setup
-1. Install dependencies:
-   `npm install`
-2. Create your env file:
-   `Copy-Item .env.example .env`
-3. Open `.env` and set:
-   `VITE_GROQ_API_KEY=...`
-   `VITE_SUPABASE_URL=...`
-   
-   `VITE_SUPABASE_ANON_KEY=...`
-   `VITE_API_BASE_URL=http://localhost:4000`
-4. (Optional) choose one model for all tasks:
-   `VITE_GROQ_MODEL=llama-3.3-70b-versatile`
-5. (Optional) override models by task:
-   `VITE_GROQ_MODEL_COURSE=...`
-   `VITE_GROQ_MODEL_LESSON=...`
-   `VITE_GROQ_MODEL_QUIZ=...`
-6. Start the app:
-   `npm run dev`
+Personalized AI-powered learning platform that generates custom curriculums, lessons, and quizzes based on user learning goals.
 
-## Integrated Projects
-This repository now includes:
-- `web` app at root (Vite + React)
-- `mobile/` app (Expo + React Native + Supabase Auth)
-- `server/` API (Express + Supabase JWT verification)
+## Project Structure
 
-## Mobile Setup (Expo)
-1. Install mobile dependencies:
-   `npm --prefix mobile install`
-2. Create mobile env file:
-   `Copy-Item mobile/.env.example mobile/.env`
-3. Set:
-   `EXPO_PUBLIC_SUPABASE_URL=...`
-   `EXPO_PUBLIC_SUPABASE_ANON_KEY=...`
-4. Run mobile app:
-   `npm run mobile:start`
+```
+AI-Learning-Tutor/
+├── frontend/              # Web application (React + TypeScript + Vite)
+├── server/               # Backend API (Express.js)
+├── mobile/               # Mobile app (Expo + React Native)
+└── docs/                 # Documentation
+    └── SECURITY.md       # Security documentation
+```
 
-## Server Setup (Express)
-1. Install server dependencies:
-   `npm --prefix server install`
-2. Create server env file:
-   `Copy-Item server/.env.example server/.env`
-3. Set:
-   `SUPABASE_URL=...`
-   `SUPABASE_SERVICE_ROLE_KEY=...`
-   `SUPABASE_JWT_SECRET=...`
-4. Run server:
-   `npm run server:dev`
+## Quick Start
 
-## Web Auth + Protected API
-- The root web app now uses Supabase Auth (signup/login/logout) before loading the tutor UI.
-- Web session is persisted by Supabase in browser storage.
-- After login, use the `Profile` button (top-right) to call protected backend route:
-  - `GET /api/profile`
-  - Header: `Authorization: Bearer <supabase_access_token>`
+### 1. Frontend (Web App)
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+# Edit .env with your credentials
+npm run dev
+```
+
+### 2. Backend API (Optional)
+
+```bash
+cd server
+npm install
+cp .env.example .env
+# Edit .env with your credentials
+npm run dev
+```
+
+### 3. Mobile App
+
+```bash
+cd mobile
+npm install
+cp .env.example .env
+# Edit .env with your credentials
+npm start
+```
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Frontend                                │
+│                    (React + TypeScript)                         │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────────────────┐│
+│  │  Onboarding  │  │  Dashboard   │  │      QuizModal        ││
+│  └──────────────┘  └──────────────┘  └───────────────────────┘│
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Groq API (AI Content)                        │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│               Supabase (Auth + Session Management)                │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                       Backend API                                │
+│            (Express.js + JWT + Security Headers)                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Features
+
+| Feature | Frontend | Backend | Mobile |
+|---------|----------|---------|--------|
+| AI Course Generation | ✓ | - | - |
+| AI Lesson Content | ✓ | - | - |
+| AI Quiz Generation | ✓ | - | - |
+| Supabase Auth | ✓ | ✓ | ✓ |
+| JWT Verification | - | ✓ | - |
+| Rate Limiting | ✓ (client) | ✓ | - |
+| Security Headers | - | ✓ | - |
+| Responsive Design | ✓ | - | - |
+
+## Documentation
+
+- [Frontend README](frontend/README.md)
+- [Server README](server/README.md)
+- [Mobile README](mobile/README.md)
+- [Security Documentation](docs/SECURITY.md)
+
+## Environment Variables
+
+### Frontend (`.env`)
+
+```bash
+VITE_SUPABASE_URL=https://xxx.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJ...
+VITE_GROQ_API_KEY=gsk_xxx
+VITE_API_BASE_URL=http://localhost:4000
+```
+
+### Server (`.env`)
+
+```bash
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_JWT_SECRET=xxx
+SUPABASE_SERVICE_ROLE_KEY=xxx
+PORT=4000
+NODE_ENV=development
+```
+
+### Mobile (`.env`)
+
+```bash
+EXPO_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+```
+
+## Scripts
+
+### Frontend
+```bash
+npm run dev          # Start dev server
+npm run build        # Build for production
+npm run preview      # Preview production build
+npm run typecheck    # TypeScript checking
+```
+
+### Backend
+```bash
+npm run dev         # Start with nodemon
+npm start           # Production start
+```
+
+### Mobile
+```bash
+npm start           # Start Expo
+npm run android     # Android build
+npm run ios         # iOS build
+```
+
+## License
+
+MIT
