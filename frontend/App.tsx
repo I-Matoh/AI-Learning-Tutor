@@ -14,7 +14,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Session } from '@supabase/supabase-js';
-import { Analytics } from "@vercel/analytics/react";
+import { Analytics } from '@vercel/analytics/react';
 import { generateCourse, generateLessonContent, generateQuiz } from './src/services/groqService';
 import { Course, Module, Lesson, Quiz } from './src/types';
 import { Icons } from './src/components/icons';
@@ -49,6 +49,8 @@ const BrandLogo: React.FC<{ className?: string }> = ({ className = '' }) => (
     <text x="75" y="140" fontSize="42" fontFamily="Plus Jakarta Sans, sans-serif" fill="#e3b11d">learn AI</text>
   </svg>
 );
+
+
 
 // =============================================================================
 // ONBOARDING SCREEN
@@ -1295,5 +1297,32 @@ export default function App() {
     );
   }
 
-  return <Dashboard course={courseData} onUpdateCourse={saveCourse} onBack={handleBackToHome} />;
+  return (
+    <>
+      {courseData ? (
+        <Dashboard course={courseData} onUpdateCourse={saveCourse} onBack={handleBackToHome} />
+      ) : (
+        <>
+          <Onboarding
+            onStart={handleStart}
+            loading={loading}
+            savedCourses={savedCourses}
+            onResume={handleResume}
+            session={session}
+            authLoading={authLoading}
+            onOpenAuth={() => setAuthModalOpen(true)}
+            onLogout={handleLogout}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+          />
+          <AuthModal
+            open={authModalOpen}
+            onClose={() => setAuthModalOpen(false)}
+            onAuthenticated={handleAuthenticated}
+          />
+        </>
+      )}
+      <Analytics />
+    </>
+  );
 }
