@@ -54,7 +54,7 @@ This plan operationalizes Phase 1 from `v2.md` into sprint-ready execution for 3
 - Acceptance criteria:
   - Cross-user access attempts denied.
   - Own-data access succeeds.
-
+ 
 ### Task 4: Implement generation endpoints (server)
 - Owner: Backend
 - Dependencies: Task 1
