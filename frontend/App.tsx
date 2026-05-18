@@ -15,7 +15,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { Analytics } from '@vercel/analytics/react';
-import { generateCourse, generateLessonContent, generateQuiz } from './src/services/groqService';
+import { generateCourse } from './src/services/groqService';
+import {
+  generateCourseViaApi,
+  generateLessonViaApi,
+  generateQuizViaApi,
+  ENABLE_CLIENT_FALLBACK,
+} from './src/services/apiService';
 import { Course, Module, Lesson, Quiz } from './src/types';
 import { Icons } from './src/components/icons';
 import { MarkdownRenderer } from './src/components/MarkdownRenderer';
@@ -708,6 +714,8 @@ const Dashboard: React.FC<DashboardProps> = ({ course: initialCourse, onUpdateCo
   // Local course state for optimistic updates
   const [course, setCourseState] = useState<Course>(initialCourse);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
+  const [syncState, setSyncState] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
 
   /**
    * Helper to update course state and propagate to parent.
@@ -715,9 +723,21 @@ const Dashboard: React.FC<DashboardProps> = ({ course: initialCourse, onUpdateCo
   const setCourse = (newCourse: Course | ((prev: Course) => Course)) => {
     setCourseState(prev => {
       const updated = typeof newCourse === 'function' ? newCourse(prev) : newCourse;
-      onUpdateCourse(updated);
+      setSyncState('saving');
+      try {
+        onUpdateCourse(updated);
+        setLastSavedAt(Date.now());
+        setSyncState('saved');
+      } catch (error) {
+        console.error('Sync failed', error);
+        setSyncState('failed');
+      }
       return updated;
     });
+  };
+
+  const retrySync = () => {
+    setCourse((prev) => ({ ...prev }));
   };
   
   // Loading states
@@ -794,7 +814,7 @@ const Dashboard: React.FC<DashboardProps> = ({ course: initialCourse, onUpdateCo
         .map(l => l.title);
       
       // Generate lesson content via AI with previous lesson context
-      const content = await generateLessonContent(
+      const content = await generateLessonViaApi(
         course.title, 
         module.title, 
         lesson.title, 
@@ -831,7 +851,7 @@ const Dashboard: React.FC<DashboardProps> = ({ course: initialCourse, onUpdateCo
       if(!info) return;
 
       // Generate quiz with actual lesson content for precise questions
-      const quiz = await generateQuiz(
+      const quiz = await generateQuizViaApi(
         course.title, 
         info.lesson.title,
         info.lesson.content // Pass lesson content for better questions
@@ -893,10 +913,9 @@ const Dashboard: React.FC<DashboardProps> = ({ course: initialCourse, onUpdateCo
       }
     }
 
-    // Update state and persist to localStorage
+    // Update state and persist via parent save flow
     const updatedCourse = { ...course, modules: newModules };
     setCourse(updatedCourse);
-    saveCourse(updatedCourse);
   };
 
   // Get active content from cache or lesson
@@ -1001,6 +1020,20 @@ const Dashboard: React.FC<DashboardProps> = ({ course: initialCourse, onUpdateCo
           ))}
         </div>
         
+        <div className="px-4 pb-2 text-xs">
+          {syncState === 'saving' && <span className="text-amber-700">Saving...</span>}
+          {syncState === 'saved' && (
+            <span className="text-green-700">
+              Saved
+              {lastSavedAt ? ` at ${new Date(lastSavedAt).toLocaleTimeString()}` : ''}
+            </span>
+          )}
+          {syncState === 'failed' && (
+            <button onClick={retrySync} className="text-red-700 underline">
+              Sync failed - retry
+            </button>
+          )}
+        </div>
         {/* Footer */}
         <div className="p-4 border-t border-slate-200 text-xs text-center text-slate-500">
           Copyright © {copyrightYear} Learn AI. All rights reserved.
@@ -1207,11 +1240,20 @@ export default function App() {
   const runStart = async (topic: string, skillLevel?: 'beginner' | 'intermediate' | 'advanced') => {
     setLoading(true);
     try {
-      const course = await generateCourse(topic, { skillLevel });
+      const course = await generateCourseViaApi(topic, skillLevel);
       saveCourse(course);
     } catch (error) {
       console.error("Error generating course:", error);
-      alert("Failed to generate course. Please try again with a different topic.");
+      if (ENABLE_CLIENT_FALLBACK && import.meta.env.DEV) {
+        try {
+          const fallbackCourse = await generateCourse(topic, { skillLevel });
+          saveCourse(fallbackCourse);
+          return;
+        } catch (fallbackError) {
+          console.error('Fallback generation failed:', fallbackError);
+        }
+      }
+      alert(error instanceof Error ? error.message : "Failed to generate course. Please try again with a different topic.");
     } finally {
       setLoading(false);
     }
