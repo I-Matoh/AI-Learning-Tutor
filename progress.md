@@ -6,5 +6,8 @@
 - [x] Supabase migration + RLS policies.
 - [x] Frontend backend generation migration.
 - [x] Sync status UI.
+- [x] DB-primary progress persistence service added (`frontend/src/services/progressService.ts`).
+- [x] App boot flow now hydrates courses from Supabase when authenticated.
+- [x] Reusable sync status component extracted (`frontend/src/components/SyncStatus.tsx`).
 - [x] Validation pass (frontend typecheck).
-- [!] Server route load check blocked by missing required server env vars (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`).
+- [!] `npm run build` failed in sandbox with `spawn EPERM` from esbuild process launch; not a code type error.

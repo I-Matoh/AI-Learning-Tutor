@@ -163,8 +163,8 @@ function authMiddleware(req, res, next) {
     }
     
     if (error instanceof jwt.JsonWebTokenError) {
-      // Log the specific error for server-side debugging
-      console.log(`[AuthMiddleware] Token error: ${error.message}`);
+      // Avoid logging token parser details that can aid attackers.
+      console.log('[AuthMiddleware] Invalid token');
       return res.status(401).json({ 
         error: 'Invalid token' 
       });

@@ -49,6 +49,12 @@ const getUsageCount = async (userId) => {
   return count || 0;
 };
 
+const getNextQuotaReset = () => {
+  const resetAt = new Date();
+  resetAt.setHours(24, 0, 0, 0);
+  return resetAt.toISOString();
+};
+
 const enforceQuota = async (userId, res) => {
   const used = await getUsageCount(userId);
   if (used >= DAILY_LIMIT) {
@@ -59,7 +65,7 @@ const enforceQuota = async (userId, res) => {
         details: {
           dailyLimit: DAILY_LIMIT,
           dailyGenerations: used,
-          resetsAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          resetsAt: getNextQuotaReset(),
         },
       },
     });
@@ -85,7 +91,7 @@ router.get('/usage', authMiddleware, async (req, res) => {
     usage: {
       dailyGenerations,
       dailyLimit: DAILY_LIMIT,
-      resetsAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      resetsAt: getNextQuotaReset(),
     },
   });
 });

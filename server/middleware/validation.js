@@ -175,7 +175,7 @@ const escapeRegex = (input) => {
  * @param {boolean} options.abortEarly - Stop at first error (default: false)
  * @returns {Function} Express middleware
  */
-const validateBody = (schema, options = { abortEarly: false }) => {
+const validateBody = (schema, _options = { abortEarly: false }) => {
   return (req, res, next) => {
     try {
       const result = schema.parse(req.body);

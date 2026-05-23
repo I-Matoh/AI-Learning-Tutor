@@ -2,7 +2,6 @@ import { Course, Quiz } from '../types';
 import { supabase } from '../lib/supabaseClient';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
-const ENABLE_CLIENT_FALLBACK = import.meta.env.VITE_ENABLE_CLIENT_GENERATION_FALLBACK === 'true';
 
 const getAuthHeaders = async () => {
   const { data } = await supabase.auth.getSession();
@@ -71,5 +70,3 @@ export const generateQuizViaApi = async (
 
   return payload.data as Quiz;
 };
-
-export { ENABLE_CLIENT_FALLBACK };
