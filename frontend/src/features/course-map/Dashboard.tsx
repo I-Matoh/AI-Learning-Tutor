@@ -189,7 +189,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ course: initialCourse, onU
     // Mark current as completed and unlock next lesson
     let foundCurrent = false;
     let nextLessonToUnlock: Lesson | null = null;
-    let nextModuleId: string | null = null;
 
     const newModules = course.modules.map(m => {
       const newLessons = m.lessons.map(l => {
@@ -200,7 +199,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ course: initialCourse, onU
         // Unlock first locked lesson after current
         if (foundCurrent && !nextLessonToUnlock && l.isLocked) {
           nextLessonToUnlock = l;
-          nextModuleId = m.id;
           return { ...l, isLocked: false };
         }
         return l;
@@ -218,7 +216,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ course: initialCourse, onU
           if(passedCurrent && l.isLocked) {
             newModules[i].lessons[j].isLocked = false;
             nextLessonToUnlock = newModules[i].lessons[j];
-            nextModuleId = newModules[i].id;
             i = newModules.length; // Break outer loop
             break;
           }
@@ -300,7 +297,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ course: initialCourse, onU
               
               {/* Lesson list with timeline connector */}
               <div className="space-y-1 ml-3 border-l-2 border-slate-200 pl-4 py-1">
-                {module.lessons.map((lesson, lIdx) => {
+                {module.lessons.map((lesson) => {
                   const isActive = activeLesson?.id === lesson.id;
                   return (
                     <button
@@ -351,7 +348,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ course: initialCourse, onU
               <div className="flex items-center gap-2 text-indigo-600 font-medium text-sm mb-2">
                 <span className="uppercase tracking-wide">{currentModule?.title}</span>
                 <Icons.ChevronRight className="w-4 h-4" />
-                <span>Lesson {course.modules.findIndex(m => m.id === currentModule?.id) + 1}.{currentModule?.lessons.findIndex(l => l.id === activeLesson.id) + 1}</span>
+                <span>
+                  Lesson {course.modules.findIndex((m) => m.id === currentModule?.id) + 1}.
+                  {(currentModule?.lessons.findIndex((l) => l.id === activeLesson.id) ?? 0) + 1}
+                </span>
               </div>
               <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">{activeLesson.title}</h1>
               <p className="text-lg text-slate-600">{activeLesson.description}</p>
@@ -425,4 +425,3 @@ export const Dashboard: React.FC<DashboardProps> = ({ course: initialCourse, onU
   );
 };
 
-// =============================================================================
