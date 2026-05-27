@@ -6,9 +6,10 @@ type QuizModalProps = {
   quiz: Quiz;
   onClose: () => void;
   onPass: () => void;
+  onComplete: (result: { score: number; total: number; passed: boolean }) => void;
 };
 
-export const QuizModal: React.FC<QuizModalProps> = ({ quiz, onClose, onPass }) => {
+export const QuizModal: React.FC<QuizModalProps> = ({ quiz, onClose, onPass, onComplete }) => {
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
@@ -37,6 +38,7 @@ export const QuizModal: React.FC<QuizModalProps> = ({ quiz, onClose, onPass }) =
   };
 
   const passed = score >= Math.ceil(quiz.questions.length * 0.7);
+  const finalize = () => onComplete({ score, total: quiz.questions.length, passed });
 
   if (showResult) {
     return (
@@ -50,11 +52,11 @@ export const QuizModal: React.FC<QuizModalProps> = ({ quiz, onClose, onPass }) =
             You scored {score} out of {quiz.questions.length}. {passed ? 'Great job mastering this section.' : 'Review the material and try again to unlock the next step.'}
           </p>
           <div className="flex gap-3 justify-center">
-            <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 font-medium">Close</button>
+            <button onClick={() => { finalize(); onClose(); }} className="px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 font-medium">Close</button>
             {passed ? (
-              <button onClick={onPass} className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium">Continue Learning</button>
+              <button onClick={() => { finalize(); onPass(); }} className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium">Continue Learning</button>
             ) : (
-              <button onClick={onClose} className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium">Review Lesson</button>
+              <button onClick={() => { finalize(); onClose(); }} className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium">Review Lesson</button>
             )}
           </div>
         </div>

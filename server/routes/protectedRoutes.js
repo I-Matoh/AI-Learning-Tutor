@@ -17,62 +17,52 @@ const router = express.Router();
 
 const DAILY_LIMIT = parseInt(process.env.GROQ_DAILY_LIMIT || '15', 10);
 
-const recordUsageEvent = async ({ userId, eventType, meta = {} }) => {
-  const { error } = await supabaseAdmin.from('usage_events').insert({
-    user_id: userId,
-    event_type: eventType,
-    event_meta: meta,
-    created_at: new Date().toISOString(),
-  });
-
-  if (error) {
-    console.warn('[usage_events] insert failed:', error.message);
-  }
-};
-
-const getUsageCount = async (userId) => {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-
-  const { count, error } = await supabaseAdmin
-    .from('usage_events')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .gte('created_at', start.toISOString())
-    .in('event_type', ['generate_course', 'generate_lesson', 'generate_quiz']);
-
-  if (error) {
-    console.warn('[usage_events] count failed:', error.message);
-    return 0;
-  }
-
-  return count || 0;
-};
-
 const getNextQuotaReset = () => {
   const resetAt = new Date();
   resetAt.setHours(24, 0, 0, 0);
   return resetAt.toISOString();
 };
 
-const enforceQuota = async (userId, res) => {
-  const used = await getUsageCount(userId);
-  if (used >= DAILY_LIMIT) {
-    res.status(429).json({
-      error: {
-        code: 'QUOTA_EXCEEDED',
-        message: 'Daily generation quota exceeded.',
-        details: {
-          dailyLimit: DAILY_LIMIT,
-          dailyGenerations: used,
-          resetsAt: getNextQuotaReset(),
-        },
-      },
-    });
-    return false;
+const consumeQuota = async ({ userId, eventType, meta = {} }) => {
+  const { data, error } = await supabaseAdmin.rpc('consume_generation_quota', {
+    p_user_id: userId,
+    p_daily_limit: DAILY_LIMIT,
+    p_event_type: eventType,
+    p_event_meta: meta,
+  });
+
+  if (error) {
+    throw new Error(`quota consume failed: ${error.message}`);
   }
 
-  return true;
+  return data?.[0] || { granted: false, daily_used: 0, resets_at: getNextQuotaReset() };
+};
+
+const releaseQuota = async (userId) => {
+  const { error } = await supabaseAdmin.rpc('release_generation_quota', {
+    p_user_id: userId,
+  });
+  if (error) {
+    console.warn('[quota] release failed:', error.message);
+  }
+};
+
+const getUsageCount = async (userId) => {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const today = start.toISOString().slice(0, 10);
+  const { data, error } = await supabaseAdmin
+    .from('usage_daily_counters')
+    .select('used_count')
+    .eq('user_id', userId)
+    .eq('usage_date', today)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[usage_daily_counters] read failed:', error.message);
+    return 0;
+  }
+  return data?.used_count || 0;
 };
 
 router.get('/profile', authMiddleware, (req, res) => {
@@ -122,14 +112,38 @@ router.post('/generate/course', authMiddleware, async (req, res) => {
     return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid request payload', details: parsed.error.flatten() } });
   }
 
-  if (!(await enforceQuota(req.user.id, res))) return;
+  let quotaSnapshot;
+  try {
+    quotaSnapshot = await consumeQuota({
+      userId: req.user.id,
+      eventType: 'generate_course',
+      meta: { topic: parsed.data.topic },
+    });
+  } catch (error) {
+    console.error('[generate/course] quota error', error);
+    return res.status(503).json({ error: { code: 'USAGE_UNAVAILABLE', message: 'Usage service unavailable. Please retry shortly.' } });
+  }
+
+  if (!quotaSnapshot.granted) {
+    return res.status(429).json({
+      error: {
+        code: 'QUOTA_EXCEEDED',
+        message: 'Daily generation quota exceeded.',
+        details: {
+          dailyLimit: DAILY_LIMIT,
+          dailyGenerations: quotaSnapshot.daily_used || DAILY_LIMIT,
+          resetsAt: quotaSnapshot.resets_at || getNextQuotaReset(),
+        },
+      },
+    });
+  }
 
   try {
     const course = await generateCourse(parsed.data);
     const validated = courseResponseSchema.parse(course);
-    await recordUsageEvent({ userId: req.user.id, eventType: 'generate_course', meta: { topic: parsed.data.topic } });
     return res.json({ data: validated });
   } catch (error) {
+    await releaseQuota(req.user.id);
     console.error('[generate/course] error', error);
     return res.status(500).json({ error: { code: 'GENERATION_FAILED', message: 'Unable to generate course right now.' } });
   }
@@ -141,13 +155,37 @@ router.post('/generate/lesson', authMiddleware, async (req, res) => {
     return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid request payload', details: parsed.error.flatten() } });
   }
 
-  if (!(await enforceQuota(req.user.id, res))) return;
+  let quotaSnapshot;
+  try {
+    quotaSnapshot = await consumeQuota({
+      userId: req.user.id,
+      eventType: 'generate_lesson',
+      meta: { lessonTitle: parsed.data.lessonTitle },
+    });
+  } catch (error) {
+    console.error('[generate/lesson] quota error', error);
+    return res.status(503).json({ error: { code: 'USAGE_UNAVAILABLE', message: 'Usage service unavailable. Please retry shortly.' } });
+  }
+
+  if (!quotaSnapshot.granted) {
+    return res.status(429).json({
+      error: {
+        code: 'QUOTA_EXCEEDED',
+        message: 'Daily generation quota exceeded.',
+        details: {
+          dailyLimit: DAILY_LIMIT,
+          dailyGenerations: quotaSnapshot.daily_used || DAILY_LIMIT,
+          resetsAt: quotaSnapshot.resets_at || getNextQuotaReset(),
+        },
+      },
+    });
+  }
 
   try {
     const content = await generateLesson(parsed.data);
-    await recordUsageEvent({ userId: req.user.id, eventType: 'generate_lesson', meta: { lessonTitle: parsed.data.lessonTitle } });
     return res.json({ data: { content } });
   } catch (error) {
+    await releaseQuota(req.user.id);
     console.error('[generate/lesson] error', error);
     return res.status(500).json({ error: { code: 'GENERATION_FAILED', message: 'Unable to generate lesson right now.' } });
   }
@@ -159,14 +197,38 @@ router.post('/generate/quiz', authMiddleware, async (req, res) => {
     return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid request payload', details: parsed.error.flatten() } });
   }
 
-  if (!(await enforceQuota(req.user.id, res))) return;
+  let quotaSnapshot;
+  try {
+    quotaSnapshot = await consumeQuota({
+      userId: req.user.id,
+      eventType: 'generate_quiz',
+      meta: { context: parsed.data.context },
+    });
+  } catch (error) {
+    console.error('[generate/quiz] quota error', error);
+    return res.status(503).json({ error: { code: 'USAGE_UNAVAILABLE', message: 'Usage service unavailable. Please retry shortly.' } });
+  }
+
+  if (!quotaSnapshot.granted) {
+    return res.status(429).json({
+      error: {
+        code: 'QUOTA_EXCEEDED',
+        message: 'Daily generation quota exceeded.',
+        details: {
+          dailyLimit: DAILY_LIMIT,
+          dailyGenerations: quotaSnapshot.daily_used || DAILY_LIMIT,
+          resetsAt: quotaSnapshot.resets_at || getNextQuotaReset(),
+        },
+      },
+    });
+  }
 
   try {
     const quiz = await generateQuiz(parsed.data);
     const validated = quizResponseSchema.parse(quiz);
-    await recordUsageEvent({ userId: req.user.id, eventType: 'generate_quiz', meta: { context: parsed.data.context } });
     return res.json({ data: validated });
   } catch (error) {
+    await releaseQuota(req.user.id);
     console.error('[generate/quiz] error', error);
     return res.status(500).json({ error: { code: 'GENERATION_FAILED', message: 'Unable to generate quiz right now.' } });
   }

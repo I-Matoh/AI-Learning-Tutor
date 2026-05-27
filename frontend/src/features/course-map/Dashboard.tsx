@@ -5,6 +5,7 @@ import { MarkdownRenderer } from '../../components/MarkdownRenderer';
 import { BrandLogo } from '../../components/BrandLogo';
 import { SyncStatus } from '../../components/SyncStatus';
 import { generateLessonViaApi, generateQuizViaApi } from '../../services/apiService';
+import { recordQuizOutcome } from '../../services/progressService';
 import { QuizModal } from '../quiz/QuizModal';
 
 type DashboardProps = { 
@@ -63,6 +64,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ course: initialCourse, onU
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizData, setQuizData] = useState<Quiz | null>(null);
   const [loadingQuiz, setLoadingQuiz] = useState(false);
+  const [quizPersisted, setQuizPersisted] = useState(false);
   
   // Mobile sidebar toggle
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -170,6 +172,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ course: initialCourse, onU
         info.lesson.content // Pass lesson content for better questions
       );
       setQuizData(quiz);
+      setQuizPersisted(false);
       setShowQuiz(true);
     } catch (e) {
       console.error(e);
@@ -226,6 +229,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ course: initialCourse, onU
     // Update state and persist via parent save flow
     const updatedCourse = { ...course, modules: newModules };
     setCourse(updatedCourse);
+  };
+
+  const handleQuizComplete = async (result: { score: number; total: number; passed: boolean }) => {
+    if (!activeLesson || !quizData || quizPersisted) return;
+    setQuizPersisted(true);
+    try {
+      await recordQuizOutcome(course.id, activeLesson.id, result.score, result.total, result.passed, quizData);
+    } catch (error) {
+      console.error('Failed to persist quiz outcome', error);
+    }
   };
 
   // Get active content from cache or lesson
@@ -419,6 +432,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ course: initialCourse, onU
           quiz={quizData} 
           onClose={() => setShowQuiz(false)} 
           onPass={handleLessonComplete} 
+          onComplete={handleQuizComplete}
         />
       )}
     </div>
