@@ -9,3 +9,7 @@
 6. [x] Add sync status indicator (`Saving...`, `Saved`, `Sync failed`) in dashboard.
 7. [x] Switch progress persistence to DB-primary (`courses` table payload) with local cache fallback.
 8. [x] Load saved courses from Supabase on authenticated sessions for cross-device resume.
+9. [x] Add atomic server-side quota consumption to prevent race-condition overages.
+10. [x] Fail-safe usage accounting with quota release on generation failure paths.
+11. [x] Sync course modules and lessons into relational tables (`course_modules`, `module_lessons`).
+12. [x] Persist quiz and lesson attempts to dedicated tables (`quiz_attempts`, `lesson_attempts`).
